@@ -2,11 +2,14 @@ services:
   - type: web
     name: whatsapp-bot
     env: node
+    region: oregon
+    plan: free
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
-        value: 18.18.0
+        value: 18
       - key: PREFIX
         value: "!"
       - key: OWNER_NUMBER
