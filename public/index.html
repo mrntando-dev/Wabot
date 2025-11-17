@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot - Pairing Service</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        
+        .status-ready {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status-loading {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .status-error {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: #f3f4f6;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .qr-container {
+            text-align: center;
+        }
+        
+        #qrCode {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+            margin: 20px auto;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .pairing-code {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .pairing-code h3 {
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        
+        .code-display {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            letter-spacing: 5px;
+            margin: 10px 0;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-box p {
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .commands {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .commands h3 {
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        
+        .command-item {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .command-name {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .command-desc {
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 WhatsApp Bot</h1>
+            <p>Connect your WhatsApp to the bot</p>
+            <div id="statusBadge" class="status-badge status-loading">Loading...</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('pairing')">📱 Pairing Code</button>
+            <button class="tab" onclick="switchTab('qr')">📷 QR Code</button>
+            <button class="tab" onclick="switchTab('info')">ℹ️ Info</button>
+        </div>
+
+        <!-- Pairing Tab -->
+        <div id="pairingTab" class="tab-content active">
+            <div class="info-box">
+                <p><strong>How to pair:</strong><br>
+                1. Enter your phone number with country code<br>
+                2. Click "Get Pairing Code"<br>
+                3. Open WhatsApp → Settings → Linked Devices<br>
+                4. Tap "Link a Device" → "Link with phone number"<br>
+                5. Enter the code shown below</p>
+            </div>
+
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number (with country code)</label>
+                <input 
+                    type="tel" 
+                    id="phoneNumber" 
+                    placeholder="e.g., 1234567890 or 911234567890"
+                    pattern="[0-9]+"
+                >
+                <small style="color: #6b7280; display: block; margin-top: 5px;">
+                    Enter without + or spaces (e.g., 1234567890)
+                </small>
+            </div>
+
+            <button class="btn btn-primary" onclick="requestPairingCode()" id="pairBtn">
+                Get Pairing Code
+            </button>
+
+            <div id="pairingCodeDisplay" class="pairing-code hidden">
+                <h3>Your Pairing Code:</h3>
+                <div class="code-display" id="codeText">------</div>
+                <p style="color: #6b7280; font-size: 14px;">Enter this code in WhatsApp</p>
+            </div>
+        </div>
+
+        <!-- QR Code Tab -->
+        <div id="qrTab" class="tab-content">
+            <div class="info-box">
+                <p><strong>How to scan:</strong><br>
+                1. Open WhatsApp on your phone<br>
+                2. Go to Settings → Linked Devices<br>
+                3. Tap "Link a Device"<br>
+                4. Scan the QR code below</p>
+            </div>
+
+            <div class="qr-container">
+                <img id="qrCode" src="" alt="QR Code will appear here" style="display: none;">
+                <div id="qrLoading" style="padding: 40px;">
+                    <div class="loading" style="margin: 0 auto;"></div>
+                    <p style="margin-top: 20px; color: #6b7280;">Waiting for QR code...</p>
+                </div>
+                <div id="qrError" class="hidden" style="color: #ef4444;">
+                    QR code not available. Try pairing code method.
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Tab -->
+        <div id="infoTab" class="tab-content">
+            <div class="commands">
+                <h3>📚 Available Commands</h3>
+                <div class="command-item">
+                    <span class="command-name" id="pingCmd">!ping</span>
+                    <span class="command-desc">Check bot latency</span>
+                </div>
+                <div class="command-item">
+                    <span class="command-name" id="aliveCmd">!alive</span>
+                    <span class="command-desc">Check bot status</span>
+                </div>
+                <div class="command-item">
+                    <span class="command-name" id="ownerCmd">!owner</span>
+                    <span class="command-desc">Get owner info</span>
+                </div>
+                <div class="command-item">
+                    <span class="command-name" id="helpCmd">!help</span>
+                    <span class="command-desc">Show all commands</span>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top: 20px;">
+                <p><strong>Bot Status:</strong><br>
+                <span id="detailedStatus">Checking...</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'pairing';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(tab + 'Tab').classList.add('active');
+            
+            // Load QR if switching to QR tab
+            if (tab === 'qr') {
+                loadQRCode();
+            }
+        }
+
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                const badge = document.getElementById('statusBadge');
+                const detailedStatus = document.getElementById('detailedStatus');
+                
+                if (data.isReady) {
+                    badge.className = 'status-badge status-ready';
+                    badge.textContent = '✅ Connected';
+                } else {
+                    badge.className = 'status-badge status-loading';
+                    badge.textContent = '⏳ ' + data.status;
+                }
+                
+                if (detailedStatus) {
+                    detailedStatus.innerHTML = `
+                        <strong>Status:</strong> ${data.status}<br>
+                        <strong>Uptime:</strong> ${Math.floor(data.uptime / 60)} minutes<br>
+                        <strong>Prefix:</strong> ${data.prefix}
+                    `;
+                }
+                
+                // Update command prefixes
+                const prefix = data.prefix;
+                document.getElementById('pingCmd').textContent = prefix + 'ping';
+                document.getElementById('aliveCmd').textContent = prefix + 'alive';
+                document.getElementById('ownerCmd').textContent = prefix + 'owner';
+                document.getElementById('helpCmd').textContent = prefix + 'help';
+                
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                const badge = document.getElementById('statusBadge');
+                badge.className = 'status-badge status-error';
+                badge.textContent = '❌ Error';
+            }
+        }
+
+        async function loadQRCode() {
+            try {
+                const response = await fetch('/api/qr');
+                const data = await response.json();
+                
+                if (data.qr) {
+                    document.getElementById('qrCode').src = data.qr;
+                    document.getElementById('qrCode').style.display = 'block';
+                    document.getElementById('qrLoading').style.display = 'none';
+                    document.getElementById('qrError').classList.add('hidden');
+                }
+            } catch (error) {
+                document.getElementById('qrLoading').style.display = 'none';
+                document.getElementById('qrError').classList.remove('hidden');
+            }
+        }
+
+        async function requestPairingCode() {
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const btn = document.getElementById('pairBtn');
+            const display = document.getElementById('pairingCodeDisplay');
+            const codeText = document.getElementById('codeText');
+            
+            if (!phoneNumber) {
+                alert('Please enter your phone number');
+                return;
+            }
+            
+            // Validate phone number
+            if (!/^[0-9]{10,15}$/.test(phoneNumber)) {
+                alert('Please enter a valid phone number (10-15 digits, no spaces or symbols)');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading"></div>';
+            display.classList.add('hidden');
+            
+            try {
+                const response = await fetch('/api/request-pairing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ phoneNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    codeText.textContent = data.code;
+                    display.classList.remove('hidden');
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to generate pairing code'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to request pairing code. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Pairing Code';
+            }
+        }
+
+        // Auto-update status every 5 seconds
+        updateStatus();
+        setInterval(updateStatus, 5000);
+        
+        // Auto-refresh QR code every 30 seconds if on QR tab
+        setInterval(() => {
+            if (currentTab === 'qr') {
+                loadQRCode();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
