@@ -37,11 +37,6 @@ const client = new Client({
             '--no-zygote',
             '--disable-gpu'
         ]
-    },
-    // Add these options to help with stability
-    webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
     }
 });
 
@@ -53,7 +48,7 @@ client.on('qr', async (qr) => {
     try {
         qrCodeData = await qrcode.toDataURL(qr);
         console.log('✅ QR Code generated successfully');
-        console.log('🔗 Access http://localhost:' + PORT + ' to scan');
+        console.log('🔗 Access the web interface to scan');
     } catch (err) {
         console.error('❌ Error generating QR code:', err);
     }
@@ -140,11 +135,9 @@ client.on('message', async (message) => {
 // Command handlers
 async function handlePing(message) {
     const start = Date.now();
-    const sent = await message.reply('🏓 Pinging...');
+    await message.reply('🏓 Pinging...');
     const latency = Date.now() - start;
     
-    // Note: message.edit() is not available in whatsapp-web.js
-    // Send a new message instead
     await message.reply(`🏓 *Pong!*\n⏱️ Latency: ${latency}ms`);
 }
 
@@ -333,7 +326,7 @@ app.get('/', (req, res) => {
         </div>
         
         <div class="info">
-            <p><strong>📱 Prefix:</strong> ${PREFIX}</p>
+            <p><strong>📱 Prefix:</strong> ` + PREFIX + `</p>
             <p><strong>🔧 Status:</strong> <span id="statusText">Checking...</span></p>
             <p><strong>⏱️ Uptime:</strong> <span id="uptimeText">0s</span></p>
         </div>
@@ -399,7 +392,13 @@ app.get('/', (req, res) => {
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             const s = Math.floor(seconds % 60);
-            return h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+            if (h > 0) {
+                return h + 'h ' + m + 'm ' + s + 's';
+            } else if (m > 0) {
+                return m + 'm ' + s + 's';
+            } else {
+                return s + 's';
+            }
         }
 
         function refreshStatus() {
@@ -454,7 +453,7 @@ app.listen(PORT, () => {
     console.log(`🌐 Server running on port ${PORT}`);
     console.log(`📱 Bot prefix: ${PREFIX}`);
     console.log(`👤 Owner: ${OWNER_NAME}`);
-    console.log(`🔗 Open http://localhost:${PORT} to connect your device`);
+    console.log(`🔗 Visit your Render URL to connect your device`);
 });
 
 // Graceful shutdown
