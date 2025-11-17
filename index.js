@@ -13,7 +13,6 @@ const OWNER_NAME = process.env.OWNER_NAME || 'Bot Owner';
 
 // State management
 let qrCodeData = null;
-let pairingCode = null;
 let isReady = false;
 let clientStatus = 'Initializing...';
 
@@ -24,7 +23,8 @@ app.use(express.static('public'));
 // Initialize WhatsApp client
 const client = new Client({
     authStrategy: new LocalAuth({
-        dataPath: './wa_auth'
+        dataPath: './wa_auth',
+        clientId: 'client-one'
     }),
     puppeteer: {
         headless: true,
@@ -35,9 +35,13 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu',
-            '--disable-software-rasterizer'
+            '--disable-gpu'
         ]
+    },
+    // Add these options to help with stability
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
     }
 });
 
@@ -49,6 +53,7 @@ client.on('qr', async (qr) => {
     try {
         qrCodeData = await qrcode.toDataURL(qr);
         console.log('✅ QR Code generated successfully');
+        console.log('🔗 Access http://localhost:' + PORT + ' to scan');
     } catch (err) {
         console.error('❌ Error generating QR code:', err);
     }
@@ -60,24 +65,31 @@ client.on('ready', () => {
     isReady = true;
     clientStatus = 'Connected and Ready';
     qrCodeData = null;
-    pairingCode = null;
 });
 
 // Authentication events
 client.on('authenticated', () => {
     console.log('✅ Authenticated successfully!');
-    clientStatus = 'Authenticated';
+    clientStatus = 'Authenticated - Loading...';
 });
 
 client.on('auth_failure', (msg) => {
     console.error('❌ Authentication failed:', msg);
     clientStatus = 'Authentication Failed';
+    qrCodeData = null;
 });
 
 client.on('disconnected', (reason) => {
     console.log('❌ Client disconnected:', reason);
     isReady = false;
     clientStatus = 'Disconnected';
+    qrCodeData = null;
+    
+    // Optional: Auto-restart
+    console.log('🔄 Attempting to reconnect...');
+    setTimeout(() => {
+        client.initialize();
+    }, 5000);
 });
 
 // Loading event
@@ -128,10 +140,12 @@ client.on('message', async (message) => {
 // Command handlers
 async function handlePing(message) {
     const start = Date.now();
-    const sent = await message.reply('Pinging...');
+    const sent = await message.reply('🏓 Pinging...');
     const latency = Date.now() - start;
     
-    await sent.edit(`🏓 *Pong!*\n⏱️ Latency: ${latency}ms`);
+    // Note: message.edit() is not available in whatsapp-web.js
+    // Send a new message instead
+    await message.reply(`🏓 *Pong!*\n⏱️ Latency: ${latency}ms`);
 }
 
 async function handleAlive(message) {
@@ -184,7 +198,222 @@ _Prefix: ${PREFIX}_
 
 // API Routes
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot - Connect</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .status {
+            padding: 12px 24px;
+            border-radius: 25px;
+            margin: 20px 0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        #qrcode {
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        #qrcode img {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .loading {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .info {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+            border-radius: 5px;
+        }
+        .info p {
+            margin: 5px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 WhatsApp Bot</h1>
+        <div id="statusBadge" class="status waiting">Initializing...</div>
+        
+        <div id="qrcodeContainer" class="hidden">
+            <p style="margin-bottom: 15px; color: #666;">Scan this QR code with WhatsApp</p>
+            <div id="qrcode">
+                <div class="loading"></div>
+            </div>
+        </div>
+        
+        <div id="connectedMessage" class="hidden">
+            <div style="font-size: 60px; margin: 20px 0;">✅</div>
+            <h2 style="color: #155724;">Connected Successfully!</h2>
+            <p style="color: #666; margin-top: 10px;">Your bot is now active and ready to use.</p>
+        </div>
+        
+        <div class="info">
+            <p><strong>📱 Prefix:</strong> ${PREFIX}</p>
+            <p><strong>🔧 Status:</strong> <span id="statusText">Checking...</span></p>
+            <p><strong>⏱️ Uptime:</strong> <span id="uptimeText">0s</span></p>
+        </div>
+        
+        <button onclick="refreshStatus()">🔄 Refresh Status</button>
+    </div>
+
+    <script>
+        let checkInterval;
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                document.getElementById('statusText').textContent = data.status;
+                document.getElementById('uptimeText').textContent = formatUptime(data.uptime);
+                
+                const statusBadge = document.getElementById('statusBadge');
+                const qrcodeContainer = document.getElementById('qrcodeContainer');
+                const connectedMessage = document.getElementById('connectedMessage');
+                
+                if (data.isReady) {
+                    statusBadge.className = 'status ready';
+                    statusBadge.textContent = '✅ Connected & Ready';
+                    qrcodeContainer.classList.add('hidden');
+                    connectedMessage.classList.remove('hidden');
+                    clearInterval(checkInterval);
+                } else if (data.hasQR) {
+                    statusBadge.className = 'status waiting';
+                    statusBadge.textContent = '📱 Waiting for QR Scan';
+                    qrcodeContainer.classList.remove('hidden');
+                    connectedMessage.classList.add('hidden');
+                    loadQRCode();
+                } else {
+                    statusBadge.className = 'status waiting';
+                    statusBadge.textContent = '⏳ ' + data.status;
+                    qrcodeContainer.classList.add('hidden');
+                    connectedMessage.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+                document.getElementById('statusBadge').className = 'status error';
+                document.getElementById('statusBadge').textContent = '❌ Connection Error';
+            }
+        }
+
+        async function loadQRCode() {
+            try {
+                const response = await fetch('/api/qr');
+                const data = await response.json();
+                
+                if (data.qr) {
+                    document.getElementById('qrcode').innerHTML = 
+                        '<img src="' + data.qr + '" alt="QR Code">';
+                }
+            } catch (error) {
+                console.error('Error loading QR code:', error);
+            }
+        }
+
+        function formatUptime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return h > 0 ? `${h}h ${m}m ${s}s` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+        }
+
+        function refreshStatus() {
+            checkStatus();
+        }
+
+        // Check status every 3 seconds
+        checkStatus();
+        checkInterval = setInterval(checkStatus, 3000);
+    </script>
+</body>
+</html>
+    `;
+    res.send(html);
 });
 
 app.get('/api/status', (req, res) => {
@@ -192,7 +421,6 @@ app.get('/api/status', (req, res) => {
         status: clientStatus,
         isReady: isReady,
         hasQR: qrCodeData !== null,
-        hasPairingCode: pairingCode !== null,
         uptime: process.uptime(),
         prefix: PREFIX
     });
@@ -203,40 +431,6 @@ app.get('/api/qr', (req, res) => {
         res.json({ qr: qrCodeData });
     } else {
         res.status(404).json({ error: 'QR code not available' });
-    }
-});
-
-app.post('/api/request-pairing', async (req, res) => {
-    try {
-        const { phoneNumber } = req.body;
-        
-        if (!phoneNumber) {
-            return res.status(400).json({ error: 'Phone number is required' });
-        }
-        
-        // Clean phone number (remove spaces, dashes, etc.)
-        const cleanNumber = phoneNumber.replace(/\D/g, '');
-        
-        console.log('📱 Requesting pairing code for:', cleanNumber);
-        
-        // Request pairing code
-        const code = await client.requestPairingCode(cleanNumber);
-        pairingCode = code;
-        
-        console.log('✅ Pairing code generated:', code);
-        
-        res.json({ 
-            success: true, 
-            code: code,
-            message: 'Pairing code generated successfully'
-        });
-        
-    } catch (error) {
-        console.error('❌ Error requesting pairing code:', error);
-        res.status(500).json({ 
-            error: 'Failed to generate pairing code',
-            details: error.message 
-        });
     }
 });
 
@@ -260,18 +454,18 @@ app.listen(PORT, () => {
     console.log(`🌐 Server running on port ${PORT}`);
     console.log(`📱 Bot prefix: ${PREFIX}`);
     console.log(`👤 Owner: ${OWNER_NAME}`);
-    console.log(`🔗 Open http://localhost:${PORT} to pair your device`);
+    console.log(`🔗 Open http://localhost:${PORT} to connect your device`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('Shutting down gracefully...');
+    console.log('\n👋 Shutting down gracefully...');
     await client.destroy();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-    console.log('Shutting down gracefully...');
+    console.log('👋 Shutting down gracefully...');
     await client.destroy();
     process.exit(0);
 });
